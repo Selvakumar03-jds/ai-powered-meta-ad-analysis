@@ -1,0 +1,243 @@
+{
+  "name": "MySivi Ads Automation for Marketing",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c11353d4-f269-4b60-bcf6-d7eefd9f2df3",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "resource": "Datasets",
+        "datasetId": "Nmsdgji87CNduUzol",
+        "offset": 0,
+        "options": {},
+        "authentication": "apifyOAuth2Api"
+      },
+      "type": "@apify/n8n-nodes-apify.apify",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "921853e6-80d0-4be4-bb3f-56b87efc39a3",
+      "name": "Get dataset items",
+      "credentials": {
+        "apifyOAuth2Api": {
+          "id": "pkbnKkksMld7TIYJ",
+          "name": "Apify account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\nconst expectedPageId = '974103675777955';\n\nfunction readableDate(value) {\n  if (value === null || value === undefined || value === '') {\n    return null;\n  }\n\n  // Apify start_date/end_date are Unix timestamps in seconds.\n  const date = new Date(Number(value) * 1000);\n\n  if (Number.isNaN(date.getTime())) return null;\n\n  return date.toLocaleString('en-IN', {\n    timeZone: 'Asia/Kolkata',\n    day: '2-digit',\n    month: 'short',\n    year: 'numeric',\n    hour: '2-digit',\n    minute: '2-digit'\n  });\n}\n\nconst cleaned = [];\n\nfor (const item of items) {\n  const d = item.json;\n  const snapshot = d.snapshot ?? {};\n\n  // Verify the target page before including an ad.\n  const pageId = String(\n    d.page_id ?? snapshot.page_id ?? ''\n  );\n\n  if (pageId !== expectedPageId) continue;\n\n  const body = String(\n    d['snapshot.body.text'] ??\n    snapshot.body?.text ??\n    ''\n  ).trim();\n\n  const headline = String(\n    d['snapshot.title'] ??\n    snapshot.title ??\n    ''\n  ).trim();\n\n  const advertiser = String(\n    snapshot.page_name ?? d.page_name ?? ''\n  ).trim();\n\n  const adId = String(\n    d.ad_archive_id ?? d.ad_id ?? ''\n  );\n\n  const cta = String(\n    d['snapshot.cta_text'] ??\n    snapshot.cta_text ??\n    ''\n  ).trim();\n\n  const destinationUrl =\n    d['snapshot.link_url'] ??\n    snapshot.link_url ??\n    '';\n\n  const normalizedCopy = `${body} ${headline}`\n    .toLowerCase()\n    .replace(/\\s+/g, ' ')\n    .trim();\n\n  cleaned.push({\n    json: {\n      ad_id: adId,\n      page_id: pageId,\n      advertiser,\n      body,\n      headline,\n      cta,\n      destination_url: destinationUrl,\n      is_active: d.is_active ?? null,\n      start_date: d.start_date ?? null,\n      start_date_readable: readableDate(d.start_date),\n      end_date: d.end_date ?? null,\n      end_date_readable: readableDate(d.end_date),\n      creative_group: normalizedCopy,\n      hook: '',\n      page_verified: true\n    }\n  });\n}\n\nreturn cleaned;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "7ade006a-6a07-4124-905e-9c5cdd67ba56",
+      "name": "Clean code Node"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a senior digital advertising creative strategist analyzing Facebook ads for MySivi, an AI-powered English-speaking learning app.\n\nAnalyze the following advertisement using only the supplied data. Preserve the original language of the ad when quoting or describing its copy. Do not invent performance metrics, audience research, or claims that are not supported by the ad.\n\nAD DATA:\nAd ID: {{ $json.ad_id }}\nAdvertiser: {{ $json.advertiser }}\nBody copy: {{ $json.body }}\nHeadline: {{ $json.headline }}\nCTA: {{ $json.cta }}\nDestination URL: {{ $json.destination_url }}\n\nTASKS:\n1. Identify the opening hook. If there is no distinct opening hook, say so and suggest one clearly labelled as a suggestion.\n2. Identify the likely audience problem addressed by the ad.\n3. Summarize the value proposition and offer.\n4. Identify the language used in the ad.\n5. Score each category from 1 to 10:\n   - hook_strength\n   - pain_point_relevance\n   - value_proposition_score\n   - cta_clarity\n   - differentiation\n6. Briefly justify each score using evidence from the supplied copy.\n7. State one strength, one weakness, and one practical improvement.\n\nReturn only valid JSON using this structure:\n{\n  \"ad_id\": \"string\",\n  \"hook\": \"string\",\n  \"audience_problem\": \"string\",\n  \"value_proposition\": \"string\",\n  \"offer\": \"string\",\n  \"language\": \"string\",\n  \"hook_strength\": 1,\n  \"pain_point_relevance\": 1,\n  \"value_proposition_score\": 1,\n  \"cta_clarity\": 1,\n  \"differentiation\": 1,\n  \"score_evidence\": {\n    \"hook_strength\": \"string\",\n    \"pain_point_relevance\": \"string\",\n    \"value_proposition\": \"string\",\n    \"cta_clarity\": \"string\",\n    \"differentiation\": \"string\"\n  },\n  \"strength\": \"string\",\n  \"weakness\": \"string\",\n  \"improvement\": \"string\"\n}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        0
+      ],
+      "id": "26298159-e361-45cc-9986-9c2e6f2191a9",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        608,
+        208
+      ],
+      "id": "8c3d255d-4eca-4124-8ae6-c8c22f89d66c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\n// Retrieve the original ad records from Clean Code Node.\n// Match each AI result to its original ad using ad_id.\nconst originalItems = $('Clean code Node').all();\n\nconst originalById = new Map();\n\nfor (const item of originalItems) {\n  const d = item.json;\n  const id = String(d.ad_id ?? '');\n\n  if (id) {\n    originalById.set(id, d);\n  }\n}\n\nreturn items.map((item, index) => {\n  const raw =\n    item.json.text ??\n    item.json.response ??\n    item.json.output;\n\n  if (typeof raw !== 'string') {\n    throw new Error(\n      `Item ${index + 1}: AI response text is missing`\n    );\n  }\n\n  const cleaned = raw\n    .trim()\n    .replace(/^```(?:json)?\\s*/i, '')\n    .replace(/\\s*```$/, '');\n\n  let parsed;\n\n  try {\n    parsed = JSON.parse(cleaned);\n  } catch (error) {\n    throw new Error(\n      `Item ${index + 1}: Invalid AI JSON: ${error.message}`\n    );\n  }\n\n  const adId = String(parsed.ad_id ?? '');\n  const original = originalById.get(adId);\n\n  if (!original) {\n    throw new Error(\n      `Item ${index + 1}: Original ad not found for ID ${adId}`\n    );\n  }\n\n  const scoreFields = [\n    'hook_strength',\n    'pain_point_relevance',\n    'value_proposition_score',\n    'cta_clarity',\n    'differentiation'\n  ];\n\n  for (const field of scoreFields) {\n    const score = Number(parsed[field]);\n\n    if (!Number.isFinite(score) || score < 1 || score > 10) {\n      throw new Error(\n        `Item ${index + 1}: Invalid ${field} score`\n      );\n    }\n\n    parsed[field] = score;\n  }\n\n  return {\n    json: {\n      ...original,\n      ...parsed,\n\n      // Preserve the source ad ID and original copy.\n      source_ad_id: adId,\n      original_body: String(original.body ?? ''),\n      original_headline: String(original.headline ?? ''),\n      original_cta: String(original.cta ?? ''),\n      original_destination_url: String(\n        original.destination_url ?? ''\n      )\n    }\n  };\n});\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ],
+      "id": "3350e9a9-7106-420e-95f0-7073e6dae03c",
+      "name": "Parse AI Analysis Code Node"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\n// Keep the highest-scoring record for each unique text creative.\nconst groups = new Map();\n\nfor (const item of items) {\n  const d = item.json;\n\n  const copy = [\n    d.original_body ?? d.body,\n    d.original_headline ?? d.headline\n  ]\n    .filter(Boolean)\n    .join(' ')\n    .toLowerCase()\n    .replace(/\\s+/g, ' ')\n    .trim();\n\n  if (!copy) continue;\n\n  const scores = [\n    Number(d.hook_strength),\n    Number(d.pain_point_relevance),\n    Number(d.value_proposition_score),\n    Number(d.cta_clarity),\n    Number(d.differentiation)\n  ];\n\n  if (scores.some(s => !Number.isFinite(s) || s < 1 || s > 10)) {\n    throw new Error(`Invalid score for ad ${d.ad_id}`);\n  }\n\n  const score = Math.round((\n    scores[0] * 2.5 +\n    scores[1] * 2 +\n    scores[2] * 2 +\n    scores[3] * 1.5 +\n    scores[4] * 2\n  ) * 10) / 10;\n\n  const existing = groups.get(copy);\n\n  const record = {\n    ...d,\n    creative_quality_score: score\n  };\n\n  if (!existing || score > existing.creative_quality_score) {\n    groups.set(copy, {\n      ...record,\n      duplicate_ad_ids: existing\n        ? [...(existing.duplicate_ad_ids ?? []), existing.ad_id]\n        : []\n    });\n  } else {\n    existing.duplicate_ad_ids.push(d.ad_id);\n  }\n}\n\nconst ranked = [...groups.values()]\n  .sort((a, b) =>\n    b.creative_quality_score - a.creative_quality_score\n  )\n  .map((d, index) => ({\n    json: {\n      ...d,\n      creative_rank: index + 1,\n      is_top_creative: index === 0,\n      ranking_basis: 'AI-assessed text-creative quality, not campaign performance'\n    }\n  }));\n\nreturn ranked;\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        0
+      ],
+      "id": "c7ef8bbb-4982-430d-9d64-c08f13084446",
+      "name": "Creative Score Calculator"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\nconst groups = new Map();\n\nfor (const item of items) {\n  const d = item.json;\n\n  const copy = [\n  d.original_body ?? d.body,\n  d.original_headline ?? d.headline\n]\n  .filter(Boolean)\n  .join(' ')\n  .toLowerCase()\n  .replace(/\\s+/g, ' ')\n  .trim();\n\n  // Do not group records when no usable text exists.\n  const key = copy || `ad-${d.ad_id ?? d.source_ad_id ?? groups.size}`;\n\n  if (!groups.has(key)) {\n    groups.set(key, {\n      ...d,\n      source_ad_id: d.source_ad_id ?? d.ad_id ?? '',\n      duplicate_ad_ids: []\n    });\n  } else {\n    const existing = groups.get(key);\n    const currentId = String(d.source_ad_id ?? d.ad_id ?? '');\n\n    if (\n      currentId &&\n      currentId !== String(existing.source_ad_id) &&\n      !existing.duplicate_ad_ids.includes(currentId)\n    ) {\n      existing.duplicate_ad_ids.push(currentId);\n    }\n\n    if (\n      Number(d.creative_quality_score) >\n      Number(existing.creative_quality_score)\n    ) {\n      const duplicateIds = existing.duplicate_ad_ids;\n      groups.set(key, {\n        ...d,\n        source_ad_id: d.source_ad_id ?? d.ad_id ?? '',\n        duplicate_ad_ids: duplicateIds\n      });\n    }\n  }\n}\n\nconst ranked = [...groups.values()].sort(\n  (a, b) =>\n    Number(b.creative_quality_score) -\n    Number(a.creative_quality_score)\n);\n\nreturn ranked.map((ad, index) => ({\n  json: {\n    ...ad,\n    creative_rank: index + 1,\n    is_top_creative: index === 0,\n    ranking_basis:\n      'AI-assessed creative quality; not campaign performance'\n  }\n}));\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1488,
+        0
+      ],
+      "id": "56d94067-0ab5-4893-839f-47cbf823ee49",
+      "name": "Rank Ads and Identify the Winner"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all().map(item => item.json);\n\nif (items.length === 0) {\n  throw new Error('No ranked ads received. Execute the previous nodes first.');\n}\n\nconst ranked = [...items].sort(\n  (a, b) => Number(a.creative_rank) - Number(b.creative_rank)\n);\n\nconst winner = ranked.find(ad => ad.is_top_creative === true) ?? ranked[0];\n\nconst uniqueCreatives = ranked.map(ad => ({\n  rank: Number(ad.creative_rank),\n  ad_id: String(ad.source_ad_id ?? ad.ad_id ?? ''),\n  language: ad.language ?? 'Not identified',\n  score: Number(ad.creative_quality_score),\n  hook: ad.hook ?? 'Not identified',\n  headline: ad.original_headline ?? ad.headline ?? '',\n  body: ad.original_body ?? ad.body ?? '',\n  cta: ad.original_cta ?? ad.cta ?? '',\n  strength: ad.strength ?? '',\n  weakness: ad.weakness ?? '',\n  improvement: ad.improvement ?? '',\n  duplicate_ad_ids: ad.duplicate_ad_ids ?? [],\n  is_winner: ad.is_top_creative === true\n}));\n\nreturn [{\n  json: {\n    report_title: 'MySivi Facebook Ads Creative Analysis',\n    advertiser: winner.advertiser ?? 'MySivi Spoken English App',\n    generated_at: new Date().toISOString(),\n    source_ad_records_analyzed: 10,\n    unique_text_creatives_ranked: uniqueCreatives.length,\n    winner: {\n      ad_id: String(winner.source_ad_id ?? winner.ad_id ?? ''),\n      language: winner.language ?? 'Not identified',\n      creative_quality_score: Number(winner.creative_quality_score),\n      hook: winner.hook ?? '',\n      headline: winner.original_headline ?? winner.headline ?? '',\n      body: winner.original_body ?? winner.body ?? '',\n      cta: winner.original_cta ?? winner.cta ?? '',\n      strength: winner.strength ?? '',\n      weakness: winner.weakness ?? '',\n      improvement: winner.improvement ?? '',\n      destination_url: winner.original_destination_url ?? winner.destination_url ?? ''\n    },\n    ranked_creatives: uniqueCreatives,\n    scoring_methodology: {\n      scale: '1-10 per category',\n      weights: {\n        hook_strength: '25%',\n        pain_point_relevance: '20%',\n        value_proposition_score: '20%',\n        cta_clarity: '15%',\n        differentiation: '20%'\n      },\n      interpretation: 'AI-assessed text creative quality; not measured campaign performance.'\n    },\n    limitations: [\n      'No impressions, clicks, installs, spend, conversion rate, or ROAS data was supplied.',\n      'Ranking evaluates ad copy and AI-assessed creative quality, not actual campaign performance.',\n      'Repeated ads are grouped using normalized original body copy and headline.',\n      'Visual creative quality cannot be assessed unless the ad images or videos are analyzed.'\n    ],\n    recommendations: [\n      'Test specific, relatable situations where learners need spoken English.',\n      'Explain how the AI tutor helps users practise, rather than relying only on broad ease-of-learning claims.',\n      'Make the ₹1 trial offer and next action clear in the ad.',\n      'Validate creative hypotheses using actual campaign results before reallocating advertising spend.'\n    ]\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        0
+      ],
+      "id": "9437ac29-3921-4f9a-85b0-f4b10946b78b",
+      "name": "Final Report Formater"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get dataset items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get dataset items": {
+      "main": [
+        [
+          {
+            "node": "Clean code Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean code Node": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Analysis Code Node",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Analysis Code Node": {
+      "main": [
+        [
+          {
+            "node": "Creative Score Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Creative Score Calculator": {
+      "main": [
+        [
+          {
+            "node": "Rank Ads and Identify the Winner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rank Ads and Identify the Winner": {
+      "main": [
+        [
+          {
+            "node": "Final Report Formater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "92058bab-d473-42d2-9424-35b80750f534",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7d9c55236be1624b34f5ec0c24ecf2a7d3279a0a2ad2b447640ba66861d15a64"
+  },
+  "nodeGroups": [],
+  "id": "c8krA3eFDuLDGNDt",
+  "tags": []
+}
