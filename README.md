@@ -64,12 +64,6 @@ The score represents AI-assessed creative quality under the defined evaluation f
 
 Loom walkthrough: https://www.loom.com/share/517adfc110b54a1dbbdbe3cfb4bbfa15
 
-## Project Deliverables
-
-- `MySivi_Ad_Analysis_Workflow.json` — exported n8n workflow
-- Project report — add the PDF here if it is appropriate to share publicly
-- Loom video — workflow walkthrough and execution demonstration
-
 ## Disclaimer
 
 This project was developed as a Growth Intern assignment. It demonstrates a proof of concept for automated creative analysis and ranking. The scoring weights are design choices for this implementation and have not been statistically validated against campaign outcomes.
